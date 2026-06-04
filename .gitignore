@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# IDE / editor
+.vscode/
+.idea/
+.DS_Store
+
+# Checkpoints + downloaded model weights
+wan_models/
+checkpoints/
+*.pt
+*.pth
+*.safetensors
+
+# Generated outputs
+videos/
+outputs/
+*.mp4
+logs/
+
+# Local environment
+.env
+.envrc
