@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TetherCache: Drift-Resistant Long Video Generation</title>
+<meta name="description" content="TetherCache: a training-free, plug-and-play cache management strategy for drift-resistant long video generation in autoregressive video diffusion." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f8fc;
+    --bg-soft: #eef1f8;
+    --panel: #ffffff;
+    --panel-2: #f1f4fa;
+    --border: #e3e8f1;
+    --border-strong: #cfd6e4;
+    --text: #1a2236;
+    --text-dim: #4a5470;
+    --muted: #7a8499;
+    --accent: #3b6fe0;
+    --accent-2: #6c5ce7;
+    --accent-3: #16a394;
+    --highlight: #d4881a;
+    --shadow: 0 8px 24px rgba(31, 45, 80, 0.08);
+    --shadow-strong: 0 12px 32px rgba(31, 45, 80, 0.12);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 10% -10%, rgba(59,111,224,0.10), transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, rgba(108,92,231,0.08), transparent 60%),
+                radial-gradient(800px 500px at 50% 110%, rgba(22,163,148,0.06), transparent 60%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* HERO */
+  .hero {
+    padding: 72px 0 48px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(59,111,224,0.10), rgba(108,92,231,0.10));
+    border: 1px solid rgba(59,111,224,0.30);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    margin-bottom: 18px;
+  }
+  h1.title {
+    font-size: clamp(28px, 4.2vw, 48px);
+    line-height: 1.18;
+    font-weight: 800;
+    margin: 8px 0 14px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(120deg, #1a2236 0%, #2c4376 55%, #3b6fe0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .subtitle {
+    font-size: clamp(15px, 1.6vw, 18px);
+    color: var(--text-dim);
+    max-width: 880px;
+    margin: 0 auto 22px;
+  }
+  .authors {
+    color: var(--text-dim);
+    margin: 22px auto 10px;
+    font-size: 16.5px;
+    max-width: 920px;
+    line-height: 1.9;
+  }
+  .authors span { white-space: nowrap; }
+  .authors b { color: var(--text); font-weight: 600; }
+  .authors sup { color: var(--accent); font-weight: 600; font-size: 0.78em; padding: 0 1px; }
+  .affil {
+    color: var(--muted);
+    font-size: 14.5px;
+    line-height: 1.7;
+    margin-bottom: 22px;
+  }
+  .affil sup { color: var(--accent); font-weight: 600; font-size: 0.85em; }
+  .affil a { color: var(--text-dim); }
+  .affil a:hover { color: var(--accent); }
+  .links {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+    margin-top: 18px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  .btn:hover { background: var(--panel-2); border-color: var(--accent); text-decoration: none; transform: translateY(-1px); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(59,111,224,0.25);
+  }
+  .btn.primary:hover { filter: brightness(1.05); color: #ffffff; }
+
+  /* SECTION */
+  section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2.section-title {
+    font-size: clamp(22px, 2.8vw, 30px);
+    font-weight: 700;
+    margin: 0 0 8px;
+    letter-spacing: -0.3px;
+  }
+  h2.section-title .accent { color: var(--accent); }
+  .section-sub {
+    color: var(--text-dim);
+    margin: 0 0 28px;
+    max-width: 880px;
+  }
+
+  /* TEASER */
+  .teaser-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .teaser-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    align-items: center;
+  }
+  @media (max-width: 880px) { .teaser-grid { grid-template-columns: 1fr; } }
+  .teaser-video {
+    width: 100%;
+    border-radius: 10px;
+    background: #000;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    border: 1px solid var(--border);
+  }
+  .teaser-text h3 { margin: 0 0 10px; font-size: 20px; font-weight: 700; }
+  .teaser-text p { margin: 0; color: var(--text-dim); }
+
+  /* ABSTRACT */
+  .abstract {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1.85;
+    box-shadow: var(--shadow);
+  }
+  .abstract b, .abstract strong { color: var(--text); }
+
+  /* HIGHLIGHTS */
+  .highlights {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 8px;
+  }
+  @media (max-width: 880px) { .highlights { grid-template-columns: 1fr; } }
+  .hcard {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hcard:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow-strong); }
+  .hcard .icon {
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(59,111,224,0.12), rgba(108,92,231,0.12));
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-weight: 800;
+  }
+  .hcard h4 { margin: 0 0 8px; font-size: 17px; }
+  .hcard p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+
+  /* METHOD */
+  .framework-figure {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin: 0 auto 22px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    max-width: 920px;
+  }
+  .framework-figure img {
+    width: 100%;
+    height: auto;
+    max-width: 820px;
+    display: block;
+    margin: 0 auto;
+  }
+  .framework-figure .fig-caption {
+    margin-top: 14px;
+    color: var(--text-dim);
+    font-size: 13.5px;
+    line-height: 1.6;
+    text-align: left;
+    padding: 0 6px;
+    max-width: 820px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .framework-figure .fig-caption b { color: var(--text); }
+
+  .method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 880px) { .method-grid { grid-template-columns: 1fr; } }
+  .module {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .module .tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .module.grab .tag { background: rgba(59,111,224,0.12); color: var(--accent); }
+  .module.tame .tag { background: rgba(22,163,148,0.14); color: var(--accent-3); }
+  .module h3 { margin: 6px 0 10px; font-size: 20px; }
+  .module p { margin: 0; color: var(--text-dim); }
+
+  /* TABLE */
+  .table-wrap {
+    overflow-x: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  table.results {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 720px;
+  }
+  table.results th, table.results td {
+    padding: 12px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  table.results thead th {
+    background: var(--panel-2);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  table.results td.method, table.results th.method { text-align: left; }
+  table.results tr.section-row td {
+    background: rgba(59,111,224,0.06);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 13px;
+    text-align: left;
+    letter-spacing: 0.3px;
+  }
+  table.results tr.ours td { background: rgba(59,111,224,0.08); }
+  table.results tr.ours td.method { color: var(--accent); font-weight: 700; }
+  .best { font-weight: 700; color: var(--text); }
+  .second { text-decoration: underline; text-decoration-color: var(--muted); }
+
+  /* GALLERY (Comparison Groups) */
+  .case-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+  }
+  @media (max-width: 1024px) { .case-list { grid-template-columns: 1fr; } }
+  .case-group {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 14px 12px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s ease;
+  }
+  .case-group:hover { box-shadow: var(--shadow-strong); }
+  .case-prompt {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin: 0 2px 12px;
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.45;
+  }
+  .case-prompt .prompt-tag {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 5px;
+    margin-top: 2px;
+  }
+  .case-prompt .prompt-text { font-style: italic; color: var(--text-dim); }
+
+  .case-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 480px) { .case-pair { grid-template-columns: 1fr; } }
+
+  .case-cell { position: relative; }
+  .case-cell video {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    background: #000;
+    display: block;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .case-cell .label {
+    position: absolute;
+    top: 8px; left: 8px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .case-cell .label.baseline {
+    background: rgba(20, 24, 38, 0.78);
+    color: #ffd9b8;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .case-cell .label.ours {
+    background: linear-gradient(135deg, rgba(59,111,224,0.92), rgba(108,92,231,0.92));
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  .case-cell.ours video { border-color: rgba(59,111,224,0.55); box-shadow: 0 0 0 1px rgba(59,111,224,0.15); }
+
+  .case-controls {
+    display: flex; justify-content: flex-end; gap: 6px;
+    margin: 10px 2px 0;
+  }
+  .case-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .case-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .case-btn.case-speed {
+    min-width: 56px;
+    background: linear-gradient(135deg, rgba(59,111,224,0.08), rgba(108,92,231,0.08));
+    color: var(--accent);
+    border-color: rgba(59,111,224,0.30);
+  }
+  .case-btn.case-speed:hover {
+    background: linear-gradient(135deg, rgba(59,111,224,0.16), rgba(108,92,231,0.16));
+    border-color: var(--accent);
+  }
+
+  /* LONG VIDEO */
+  .long-video-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .long-video-wrap video {
+    width: 100%;
+    border-radius: 10px;
+    aspect-ratio: 16/9;
+    background: #000;
+  }
+  .long-meta {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-top: 14px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .pill b { color: var(--text); }
+
+  /* CITATION */
+  .cite-box {
+    background: #1a2236;
+    border: 1px solid #2a3450;
+    border-radius: var(--radius);
+    padding: 18px;
+    color: #d6dcec;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13.5px;
+    overflow-x: auto;
+    white-space: pre;
+    position: relative;
+    box-shadow: var(--shadow);
+  }
+  .cite-box .copy {
+    position: absolute; top: 12px; right: 12px;
+    background: rgba(255,255,255,0.08);
+    color: #d6dcec;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .cite-box .copy:hover { border-color: rgba(255,255,255,0.4); color: #ffffff; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    padding: 36px 24px 56px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <span class="badge">arXiv 2026 · Preprint</span>
+    <h1 class="title">TetherCache: Stabilizing Long-Form Video Generation with Gated Recall and Trusted Alignment</h1>
+    <p class="subtitle">
+      A <b>training-free</b> and <b>plug-and-play</b> KV-cache policy that enables stable,
+      minute-level autoregressive video generation by combining gated relevance-diversity recall (GRAB)
+      with trusted statistical alignment (TAME).
+    </p>
+    <div class="authors">
+      <span>Yu Meng<sup>1</sup></span>,
+      <span>Xiangyang Luo<sup>1</sup></span>,
+      <span>Letian Li<sup>1</sup></span>,
+      <span>Wenyuan Jiang<sup>2</sup></span>,
+      <span>Chen Gao<sup>1</sup></span>,
+      <span>Xinlei Chen<sup>1</sup></span>,
+      <span>Yong Li<sup>1</sup></span>,
+      <span>Xiao-Ping Zhang<sup>1</sup></span>
+    </div>
+    <div class="affil">
+      <sup>1</sup>Tsinghua University &nbsp;·&nbsp; <sup>2</sup>D-INFK, ETH Zürich
+      <br/>
+      <a href="mailto:mengy24@mails.tsinghua.edu.cn">mengy24@mails.tsinghua.edu.cn</a>
+    </div>
+
+    <div class="links">
+      <a class="btn primary" href="#" target="_blank" rel="noopener">📄 arXiv</a>
+      <a class="btn" href="#" target="_blank" rel="noopener">📑 Paper (PDF)</a>
+      <a class="btn" href="https://github.com/my4f175/TetherCache" target="_blank" rel="noopener">💻 Code</a>
+      <a class="btn" href="#cases-60s">🎬 Video Gallery</a>
+      <a class="btn" href="#case-300s">⏱️ 5-min Demo</a>
+    </div>
+  </div>
+</header>
+
+<section id="teaser">
+  <div class="container">
+    <h2 class="section-title">Ultra-Long Video Generation, <span class="accent">No Retraining</span></h2>
+    <p class="section-sub">
+      TetherCache extends short-clip autoregressive diffusion models to <b>5-minute</b> video generation
+      while suppressing accumulated drift, color shifts, and structural distortion — all without modifying
+      model parameters.
+    </p>
+    <div class="teaser-card">
+      <div class="teaser-grid">
+        <video class="teaser-video" id="teaserVideo" autoplay muted loop playsinline preload="auto" controls>
+          <source src="cases-300s/300s.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        <div class="teaser-text">
+          <h3>5-Minute Continuous Generation</h3>
+          <p>
+            Built on top of <i>Self-Forcing</i> (Wan2.1-1.3B-T2V), TetherCache pushes the rollout horizon
+            far beyond the training window. The video on the left is generated <b>autoregressively for 300 seconds</b>,
+            staying visually coherent throughout the rollout.
+          </p>
+          <div class="long-meta" style="margin-top:14px;">
+            <span class="pill"><b>Duration</b> 300s</span>
+            <span class="pill"><b>Resolution</b> 832×480</span>
+            <span class="pill"><b>Backbone</b> Self-Forcing (Wan2.1-1.3B)</span>
+            <span class="pill"><b>Training</b> None</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="abstract">
+  <div class="container">
+    <h2 class="section-title">Abstract</h2>
+    <div class="abstract">
+      Autoregressive video diffusion models provide a natural formulation for streaming and variable-length
+      video generation by conditioning newly generated frames on previously generated content. However,
+      extending these models to minute-level generation remains challenging: the limited KV-cache budget
+      prevents the model from retaining the full history, while repeatedly conditioning on self-generated
+      frames induces a context distribution shift that accumulates over time, leading to visual artifacts,
+      quality degradation, and temporal drift. We propose <b>TetherCache</b>, a training-free and plug-and-play
+      cache management strategy. TetherCache organizes the cache into <b>Sink</b>, <b>Memory</b>, and
+      <b>Recent</b> regions, and introduces two complementary mechanisms: <b>GRAB</b> selects long-range memory
+      frames using a gated score that combines attention-based relevance with temporal diversity; <b>TAME</b>
+      lightly edits newly recalled memory tokens by aligning their statistics to a trusted context distribution.
+      On VBench-Long, TetherCache consistently improves long-video generation across 30s, 60s, and 240s settings.
+      In particular, for 240s generation, it reduces quality drift from <b>7.84 → 1.33</b>.
+    </div>
+  </div>
+</section>
+
+<section id="highlights">
+  <div class="container">
+    <h2 class="section-title">Highlights</h2>
+    <p class="section-sub">Three properties that make TetherCache an attractive component for long video systems.</p>
+    <div class="highlights">
+      <div class="hcard">
+        <div class="icon">①</div>
+        <h4>Training-Free, Plug-and-Play</h4>
+        <p>No fine-tuning or parameter changes. Drop-in replacement of the KV-cache policy at inference time.</p>
+      </div>
+      <div class="hcard">
+        <div class="icon">②</div>
+        <h4>Drift-Resistant Long Rollouts</h4>
+        <p>Reduces ΔQuality Drift from 7.84 to <b>1.33</b> on 240s generation, suppressing color shifts, noise, and identity drift.</p>
+      </div>
+      <div class="hcard">
+        <div class="icon">③</div>
+        <h4>Modest Overhead</h4>
+        <p>Only ~9% latency overhead over the baseline; reuses the original KV-cache tensor with light metadata.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="container">
+    <h2 class="section-title">Method Overview</h2>
+    <p class="section-sub">
+      TetherCache reinterprets the fixed KV cache as three contiguous regions —
+      <b>Sink</b> (trusted early frames), <b>Memory</b> (selective long-range recall),
+      and <b>Recent</b> (sliding window) — and equips it with two complementary mechanisms.
+    </p>
+    <figure class="framework-figure">
+      <img src="assets/framework.png" alt="Overview of TetherCache framework" loading="lazy" />
+      <figcaption class="fig-caption">
+        <b>Overview of TetherCache.</b> The fixed KV cache is divided into <b>Sink</b>, <b>Memory</b>,
+        and <b>Recent</b> regions. <b>GRAB</b> performs relevance-diversity memory recall from evicted
+        recent frames and existing memory, while <b>TAME</b> uses trusted sink statistics to align newly
+        recalled KV tokens. The two modules jointly preserve informative long-range context and suppress
+        context distribution shift without retraining.
+      </figcaption>
+    </figure>
+    <div class="method-grid">
+      <div class="module grab">
+        <span class="tag">GRAB</span>
+        <h3>Gated Recall with Attention-Diversity Balancing</h3>
+        <p>
+          For every evicted recent frame, GRAB re-scores the entire memory plus the candidate using a
+          gated score combining <b>attention-based relevance</b> and <b>temporal diversity</b>.
+          This keeps memory <i>informative</i> yet <i>temporally spread</i>, instead of being filled with
+          recent neighbors. Old memory entries can be demoted when a more useful candidate appears.
+        </p>
+      </div>
+      <div class="module tame">
+        <span class="tag">TAME</span>
+        <h3>Trusted Alignment via Memory Editing</h3>
+        <p>
+          Newly admitted KV tokens are partially aligned to the per-head, per-channel statistics of a
+          <b>trusted pool</b> (sink + existing memory). This tethers drifted historical features back
+          to a stable distribution, preventing polluted context from corrupting future attention.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cases-60s">
+  <div class="container">
+    <h2 class="section-title">60-Second Generation: <span class="accent">Side-by-Side Comparison</span></h2>
+    <p class="section-sub">
+      For each prompt, we show the <b>Self-Forcing</b> baseline (left) and <b>TetherCache (Ours)</b> (right).
+      Compared with the baseline, our method better preserves visual quality, object identity, and temporal
+      coherence over long autoregressive rollouts. Hover or click play to compare.
+    </p>
+    <div class="case-list" id="gallery60"></div>
+  </div>
+</section>
+
+
+<section id="ablation">
+  <div class="container">
+    <h2 class="section-title">Ablation Study</h2>
+    <p class="section-sub">Comparison of different variants: baseline (Self Forcing), without TAME, and full TetherCache.</p>
+    <div class="ablation-grid">
+      <div class="ablation-item">
+        <div class="ablation-label baseline">Self Forcing (Baseline)</div>
+        <video src="cases-ablation/Self-Forcing(baseline).mp4" muted loop playsinline preload="auto" controls></video>
+      </div>
+      <div class="ablation-item">
+        <div class="ablation-label no-tame">w/o TAME</div>
+        <video src="cases-ablation/wo-TAME.mp4" muted loop playsinline preload="auto" controls></video>
+      </div>
+      <div class="ablation-item">
+        <div class="ablation-label ours">TetherCache</div>
+        <video src="cases-ablation/TetherCache.mp4" muted loop playsinline preload="auto" controls></video>
+      </div>
+    </div>
+    <div class="ablation-controls">
+      <button class="case-btn" onclick="document.querySelectorAll('#ablation video').forEach(v => v.play())">▶ Play All</button>
+      <button class="case-btn" onclick="document.querySelectorAll('#ablation video').forEach(v => v.pause())">⏸ Pause All</button>
+      <button class="case-btn" onclick="document.querySelectorAll('#ablation video').forEach(v => { v.currentTime = 0; v.play(); })">⟲ Restart</button>
+      <button class="case-btn case-speed" onclick="cycleAblationSpeed(this)">⚡ 1×</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .ablation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .ablation-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ablation-item video {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    border-radius: 8px;
+    display: block;
+  }
+  .ablation-label {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
+  .ablation-label.baseline {
+    background: rgba(20, 24, 38, 0.78);
+    color: #ffd9b8;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .ablation-label.no-tame {
+    background: rgba(20, 24, 38, 0.78);
+    color: #ffd9b8;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .ablation-label.ours {
+    background: linear-gradient(135deg, rgba(59,111,224,0.92), rgba(108,92,231,0.92));
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  .ablation-controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+</style>
+
+<script>
+  function cycleAblationSpeed(btn) {
+    const SPEED_CYCLE = [1, 1.5, 2, 4];
+    const cur = parseFloat(btn.dataset.speed) || 1;
+    const idx = SPEED_CYCLE.indexOf(cur);
+    const next = SPEED_CYCLE[(idx + 1) % SPEED_CYCLE.length];
+    btn.dataset.speed = String(next);
+    btn.textContent = `⚡ ${next}×`;
+    document.querySelectorAll('#ablation video').forEach(v => { v.playbackRate = next; });
+  }
+</script>
+
+
+<footer>
+  <div>© 2026 TetherCache · Tsinghua University &amp; ETH Zürich</div>
+</footer>
+
+<script>
+  // teaser video: actively trigger play, fall back gracefully if blocked
+  (function() {
+    const v = document.getElementById('teaserVideo');
+    if (!v) return;
+    const tryPlay = () => {
+      const p = v.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(err => {
+          console.warn('Teaser autoplay blocked:', err);
+          // make sure user can manually start it
+          v.setAttribute('controls', '');
+        });
+      }
+    };
+    if (v.readyState >= 2) tryPlay();
+    else v.addEventListener('loadeddata', tryPlay, { once: true });
+  })();
+
+  // 60s gallery data
+  const cases60 = [
+    { file: "a bird and a cat-0.mp4", caption: "A bird and a cat" },
+    { file: "A boat sailing leisurely along the Seine River with the Eiffel Tower in background, oil painting-0.mp4", caption: "A boat sailing along the Seine River with the Eiffel Tower in background, oil painting" },
+    { file: "a cat drinking water-0.mp4", caption: "A cat drinking water" },
+    { file: "a cat-0.mp4", caption: "A cat" },
+    { file: "A confused panda in calculus class-0.mp4", caption: "A confused panda in calculus class" },
+    { file: "A corgi's head depicted as an explosion of a nebula-0.mp4", caption: "A corgi's head depicted as an explosion of a nebula" },
+    { file: "A couple in formal evening wear going home get caught in a heavy downpour with umbrellas, zoom in-0.mp4", caption: "A couple in formal evening wear caught in a heavy downpour with umbrellas, zoom in" },
+    { file: "A person is grooming dog-0.mp4", caption: "A person is grooming a dog" },
+    { file: "A person is roller skating-0.mp4", caption: "A person is roller skating" },
+    { file: "a person playing guitar-0.mp4", caption: "A person playing guitar" },
+    { file: "A squirrel eating a burger.-0.mp4", caption: "A squirrel eating a burger" },
+    { file: "Fireworks.-0.mp4", caption: "Fireworks" },
+  ];
+
+  const gallery = document.getElementById('gallery60');
+  cases60.forEach((c, idx) => {
+    const baselineUrl = 'cases-60s-SelfForcing/' + encodeURIComponent(c.file);
+    const oursUrl = 'cases-60s/' + encodeURIComponent(c.file);
+    const groupId = 'g' + idx;
+
+    const group = document.createElement('div');
+    group.className = 'case-group';
+    group.innerHTML = `
+      <div class="case-prompt">
+        <span class="prompt-tag">PROMPT</span>
+        <span class="prompt-text">${c.caption}</span>
+      </div>
+      <div class="case-pair">
+        <div class="case-cell baseline">
+          <span class="label baseline">Self-Forcing</span>
+          <video data-group="${groupId}" src="${baselineUrl}" muted loop playsinline preload="metadata" controls></video>
+        </div>
+        <div class="case-cell ours">
+          <span class="label ours">TetherCache (Ours)</span>
+          <video data-group="${groupId}" src="${oursUrl}" muted loop playsinline preload="metadata" controls></video>
+        </div>
+      </div>
+      <div class="case-controls">
+        <button class="case-btn" data-action="play" data-group="${groupId}">▶ Play both</button>
+        <button class="case-btn" data-action="pause" data-group="${groupId}">⏸ Pause both</button>
+        <button class="case-btn" data-action="restart" data-group="${groupId}">↺ Restart</button>
+        <button class="case-btn case-speed" data-action="speed" data-group="${groupId}" data-speed="1">⚡ 1×</button>
+      </div>
+    `;
+    gallery.appendChild(group);
+  });
+
+  // synchronized playback within each group
+  const SPEED_CYCLE = [1, 1.5, 2, 4];
+  gallery.addEventListener('click', (e) => {
+    const btn = e.target.closest('.case-btn');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const groupId = btn.dataset.group;
+    const videos = gallery.querySelectorAll(`video[data-group="${groupId}"]`);
+    if (action === 'play') {
+      videos.forEach(v => { v.currentTime = videos[0].currentTime; v.play(); });
+    } else if (action === 'pause') {
+      videos.forEach(v => v.pause());
+    } else if (action === 'restart') {
+      videos.forEach(v => { v.currentTime = 0; v.play(); });
+    } else if (action === 'speed') {
+      const cur = parseFloat(btn.dataset.speed) || 1;
+      const idx = SPEED_CYCLE.indexOf(cur);
+      const next = SPEED_CYCLE[(idx + 1) % SPEED_CYCLE.length];
+      btn.dataset.speed = String(next);
+      btn.textContent = `⚡ ${next}×`;
+      videos.forEach(v => { v.playbackRate = next; });
+    }
+  });
+
+  // hover-to-sync-play on either video in a group
+  gallery.addEventListener('mouseover', (e) => {
+    const v = e.target.closest('video[data-group]');
+    if (!v) return;
+    const groupId = v.dataset.group;
+    const videos = gallery.querySelectorAll(`video[data-group="${groupId}"]`);
+    const speedBtn = gallery.querySelector(`.case-speed[data-group="${groupId}"]`);
+    const rate = speedBtn ? parseFloat(speedBtn.dataset.speed) || 1 : 1;
+    const t = v.currentTime;
+    videos.forEach(x => { x.currentTime = t; x.playbackRate = rate; x.play().catch(()=>{}); });
+  });
+  gallery.addEventListener('mouseleave', (e) => {
+    // pause all when leaving the gallery area
+  }, true);
+
+  // copy bib
+  function copyBib() {
+    const text = document.getElementById('bibBox').innerText.replace(/^Copy\s*/, '');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('#bibBox .copy');
+      const old = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = old, 1500);
+    });
+  }
+</script>
+</body>
+</html>
