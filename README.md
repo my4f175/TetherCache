@@ -1,4 +1,4 @@
-# TetherCache: Stabilizing Long-Form Video Generation with Gated Recall and Trusted Alignment
+# TetherCache: Stabilizing Autoregressive Long-Form Video Generation with Gated Recall and Trusted Alignment
 
 [![Paper](https://img.shields.io/badge/ArXiv-Paper-brown)](https://arxiv.org/abs/2606.13035)
 [![Demo](https://img.shields.io/badge/Project-Page-brightgreen)](https://my4f175.github.io/TetherCache/)
@@ -7,6 +7,8 @@
 Yu Meng<sup>1</sup>, Xiangyang Luo<sup>1</sup>, Letian Li<sup>1</sup>, Wenyuan Jiang<sup>2</sup>, Chen Gao<sup>1</sup>, Xinlei Chen<sup>1</sup>, Yong Li<sup>1</sup> and Xiao-Ping Zhang<sup>1</sup>
 
 <sup>1</sup>Tsinghua University, <sup>2</sup>D-INFK, ETH Zürich
+
+---
 
 ## 1. Setup
 
@@ -146,3 +148,7 @@ install_tethercache(pipeline, tc_cfg)
 reset_tethercache_state(pipeline)
 video, _ = pipeline.inference(noise=..., text_prompts=[...], return_latents=True)
 ```
+
+## Acknowledgements
+
+This repository is built upon several excellent open-source projects. We sincerely thank the contributors of [Self-Forcing](https://github.com/guandeh17/Self-Forcing), [MemRoPE](https://github.com/YoungRaeKimm/MemRoPE) and [DeepForcing](https://github.com/cvlab-kaist/DeepForcing) for their inspiring work and open-source implementation.
