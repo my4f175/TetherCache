@@ -1,12 +1,20 @@
 # TetherCache: Stabilizing Long-Form Video Generation with Gated Recall and Trusted Alignment
 
+[![Paper](https://img.shields.io/badge/ArXiv-Paper-brown)](https://arxiv.org/abs/2606.13035)
+[![Demo](https://img.shields.io/badge/Demo-Page-brightgreen)](https://my4f175.github.io/TetherCache/)
+[![Code](https://img.shields.io/badge/GitHub-MemRoPE-blue)](https://github.com/my4f175/TetherCache)
+
+Yu Meng<sup>1</sup>, Xiangyang Luo<sup>1</sup>, Letian Li<sup>1</sup>, Wenyuan Jiang<sup>2</sup>, Chen Gao<sup>1</sup>, Xinlei Chen<sup>1</sup>, Yong Li<sup>1</sup> and Xiao-Ping Zhang<sup>1</sup>
+
+<sup>1</sup>Tsinghua University, <sup>2</sup>D-INFK, ETH Zürich
+
 ## 1. Setup
 
 ```bash
 conda create -n tethercache python=3.10 -y
 conda activate tethercache
 
-git clone <this-repo> TetherCache && cd TetherCache
+git clone https://github.com/my4f175/TetherCache.git TetherCache && cd TetherCache
 pip install -r requirements.txt
 pip install flash-attn --no-build-isolation
 python setup.py develop
